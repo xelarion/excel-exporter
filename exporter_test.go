@@ -12,7 +12,7 @@ import (
 )
 
 func TestExportWithStreamWriter(t *testing.T) {
-	exporter := NewExcelExporter("test_streamwriter.xlsx", true)
+	exporter := New("test_streamwriter.xlsx", true)
 
 	sheetData1 := SheetData{
 		Name:    "SheetA",
@@ -59,7 +59,7 @@ func TestExportWithStreamWriter(t *testing.T) {
 }
 
 func TestExportWithMemory(t *testing.T) {
-	exporter := NewExcelExporter("test_memory.xlsx", false)
+	exporter := New("test_memory.xlsx", false)
 
 	sheetData1 := SheetData{
 		Name:    "Sheet1",
@@ -108,7 +108,7 @@ func TestExportWithMemory(t *testing.T) {
 func TestExportWithStreamWriterUseChannel(t *testing.T) {
 	start := time.Now()
 
-	exporter := NewExcelExporter("test_streamwriter_channel.xlsx", true)
+	exporter := New("test_streamwriter_channel.xlsx", true)
 
 	sheetNames := []string{"SheetA", "SheetB"}
 	sheets := make([]SheetData, len(sheetNames))
@@ -127,7 +127,7 @@ func TestExportWithStreamWriterUseChannel(t *testing.T) {
 	t.Logf("Export with StreamWriter channel took %v", duration)
 }
 
-func addRowsToChanFunc(exporter *ExcelExporter, sheetName string) func(dataCh chan Row) {
+func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Row) {
 	return func(dataCh chan Row) {
 		titleStyle, _ := exporter.File.NewStyle(
 			&excelize.Style{
@@ -140,7 +140,7 @@ func addRowsToChanFunc(exporter *ExcelExporter, sheetName string) func(dataCh ch
 		if exporter.UseStreamWriter {
 			_ = exporter.StreamWriter.SetColWidth(1, 3, 30)
 		} else {
-			_ = exporter.File.SetColWidth(exporter.CurrentSheetName, "A", "C", 30)
+			_ = exporter.File.SetColWidth(exporter.CurrentSheet, "A", "C", 30)
 		}
 
 		// Merge cells
@@ -151,7 +151,7 @@ func addRowsToChanFunc(exporter *ExcelExporter, sheetName string) func(dataCh ch
 				{Value: "MergedTitle 2"},
 			},
 			MergeCells: []MergeCell{
-				{HCell: "A1", VCell: "B1"},
+				{TopLeftCell: "A1", BottomRightCell: "B1"},
 			},
 			RowOpts: []excelize.RowOpts{
 				{Height: 20, StyleID: titleStyle},

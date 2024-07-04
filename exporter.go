@@ -12,8 +12,8 @@ const SheetMaxRows = 1048576
 
 // MergeCell defines a merged cell data.
 type MergeCell struct {
-	HCell string
-	VCell string
+	TopLeftCell     string
+	BottomRightCell string
 }
 
 // Row represents a row of data in the Excel sheet.
@@ -32,20 +32,18 @@ type SheetData struct {
 	RowFunc RowDataFunc
 }
 
-// ExcelExporter wraps *excelize.File and *excelize.StreamWriter for exporting Excel files.
-type ExcelExporter struct {
-	File     *excelize.File
-	FileName string
-
+// Exporter provides methods for exporting data to Excel files.
+type Exporter struct {
+	File            *excelize.File
+	FileName        string
+	CurrentSheet    string // Current sheet name
 	UseStreamWriter bool
 	StreamWriter    *excelize.StreamWriter
-
-	CurrentSheetName string // Current sheet name
 }
 
-// NewExcelExporter creates a new ExcelExporter.
-func NewExcelExporter(fileName string, useStreamWriter bool) *ExcelExporter {
-	return &ExcelExporter{
+// New creates a new Exporter instance.
+func New(fileName string, useStreamWriter bool) *Exporter {
+	return &Exporter{
 		File:            excelize.NewFile(),
 		FileName:        fileName,
 		UseStreamWriter: useStreamWriter,
@@ -53,7 +51,7 @@ func NewExcelExporter(fileName string, useStreamWriter bool) *ExcelExporter {
 }
 
 // Export exports the Excel file.
-func (e *ExcelExporter) Export(sheets []SheetData) error {
+func (e *Exporter) Export(sheets []SheetData) error {
 	for i, sheet := range sheets {
 		if _, err := e.File.NewSheet(sheet.Name); err != nil {
 			return fmt.Errorf("failed to create a new sheet: %w", err)
@@ -67,11 +65,11 @@ func (e *ExcelExporter) Export(sheets []SheetData) error {
 		}
 
 		if e.UseStreamWriter {
-			if err := e.exportWithStreamWriter(sheet); err != nil {
+			if err := e.exportUsingStreamWriter(sheet); err != nil {
 				return err
 			}
 		} else {
-			if err := e.exportWithMemory(sheet); err != nil {
+			if err := e.exportUsingMemory(sheet); err != nil {
 				return err
 			}
 		}
@@ -80,7 +78,7 @@ func (e *ExcelExporter) Export(sheets []SheetData) error {
 	return e.File.SaveAs(e.FileName)
 }
 
-func (e *ExcelExporter) exportWithStreamWriter(sheet SheetData) error {
+func (e *Exporter) exportUsingStreamWriter(sheet SheetData) error {
 	initFunc := func(sheetName string) error {
 		var err error
 		e.StreamWriter, err = e.File.NewStreamWriter(sheetName)
@@ -99,7 +97,7 @@ func (e *ExcelExporter) exportWithStreamWriter(sheet SheetData) error {
 		}
 
 		for _, mergeCell := range row.MergeCells {
-			if err := e.StreamWriter.MergeCell(mergeCell.HCell, mergeCell.VCell); err != nil {
+			if err := e.StreamWriter.MergeCell(mergeCell.TopLeftCell, mergeCell.BottomRightCell); err != nil {
 				return err
 			}
 		}
@@ -114,7 +112,7 @@ func (e *ExcelExporter) exportWithStreamWriter(sheet SheetData) error {
 	return e.StreamWriter.Flush()
 }
 
-func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
+func (e *Exporter) exportUsingMemory(sheet SheetData) error {
 	initFunc := func(sheetName string) error {
 		return nil
 	}
@@ -140,7 +138,7 @@ func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
 		}
 
 		for _, mergeCell := range row.MergeCells {
-			if err := e.File.MergeCell(sheetName, mergeCell.HCell, mergeCell.VCell); err != nil {
+			if err := e.File.MergeCell(sheetName, mergeCell.TopLeftCell, mergeCell.BottomRightCell); err != nil {
 				return err
 			}
 		}
@@ -151,12 +149,12 @@ func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
 	return e.exportHelper(sheet, initFunc, writeRowFunc)
 }
 
-func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) error, writeRowFunc func(string, int, Row) error) error {
+func (e *Exporter) exportHelper(sheet SheetData, initFunc func(string) error, writeRowFunc func(string, int, Row) error) error {
 	rowID := 1
 	sheetSuffix := 0
-	e.CurrentSheetName = sheet.Name
+	e.CurrentSheet = sheet.Name
 
-	if err := initFunc(e.CurrentSheetName); err != nil {
+	if err := initFunc(e.CurrentSheet); err != nil {
 		return err
 	}
 
@@ -176,13 +174,13 @@ func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) erro
 				return fmt.Errorf("failed to create a new sheet: %w", err)
 			}
 
-			e.CurrentSheetName = currentSheetName
-			if err := initFunc(e.CurrentSheetName); err != nil {
+			e.CurrentSheet = currentSheetName
+			if err := initFunc(e.CurrentSheet); err != nil {
 				return err
 			}
 		}
 
-		if err := writeRowFunc(e.CurrentSheetName, rowID, row); err != nil {
+		if err := writeRowFunc(e.CurrentSheet, rowID, row); err != nil {
 			return err
 		}
 
