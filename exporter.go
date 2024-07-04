@@ -23,7 +23,7 @@ type Row struct {
 }
 
 // RowDataFunc is a function type that returns the next row of data or nil if no more data.
-type RowDataFunc func() *Row
+type RowDataFunc func() Row
 
 // SheetData represents the data for a single sheet.
 type SheetData struct {
@@ -83,7 +83,7 @@ func (e *ExcelExporter) exportWithStreamWriter(sheet SheetData) error {
 		return err
 	}
 
-	writeRowFunc := func(sheetName string, rowID int, row *Row) error {
+	writeRowFunc := func(sheetName string, rowID int, row Row) error {
 		rowCells := make([]interface{}, len(row.Cells))
 		for j, cell := range row.Cells {
 			rowCells[j] = cell
@@ -115,7 +115,7 @@ func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
 		return nil
 	}
 
-	writeRowFunc := func(sheetName string, rowID int, row *Row) error {
+	writeRowFunc := func(sheetName string, rowID int, row Row) error {
 		for j, cell := range row.Cells {
 			cellName, _ := excelize.CoordinatesToCellName(j+1, rowID)
 			if err := e.File.SetCellValue(sheetName, cellName, cell.Value); err != nil {
@@ -147,7 +147,7 @@ func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
 	return e.exportHelper(sheet, initFunc, writeRowFunc)
 }
 
-func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) error, writeRowFunc func(string, int, *Row) error) error {
+func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) error, writeRowFunc func(string, int, Row) error) error {
 	rowID := 1
 	sheetSuffix := 0
 	currentSheetName := sheet.Name
@@ -158,7 +158,7 @@ func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) erro
 
 	for {
 		row := sheet.RowFunc()
-		if row == nil || row.Cells == nil {
+		if row.Cells == nil {
 			break
 		}
 

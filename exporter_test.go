@@ -11,7 +11,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func generateRowData(exporter *ExcelExporter) *Row {
+func generateRowData(exporter *ExcelExporter) Row {
 	cells := make([]excelize.Cell, 20)
 	for i := 0; i < 20; i++ {
 		style, _ := exporter.File.NewStyle(&excelize.Style{
@@ -28,7 +28,7 @@ func generateRowData(exporter *ExcelExporter) *Row {
 		}
 	}
 
-	return &Row{
+	return Row{
 		Cells: cells,
 		MergeCells: []MergeCell{
 			{HCell: "A1", VCell: "B1"},
@@ -41,9 +41,9 @@ func generateRowData(exporter *ExcelExporter) *Row {
 
 func generateLargeData(exporter *ExcelExporter, rowCount int) RowDataFunc {
 	currentRow := 0
-	return func() *Row {
+	return func() Row {
 		if currentRow >= rowCount {
-			return nil
+			return Row{}
 		}
 		currentRow++
 		return generateRowData(exporter)
