@@ -194,6 +194,14 @@ The `UseRowChan` function returns a `RowDataFunc` that uses a channel to send `R
 func UseRowChan(sendDataFunc func(dataCh chan Row)) RowDataFunc
 ```
 
+### `NewRow`
+
+The `NewRow` function creates a new `Row` with the specified cell values.
+
+```go
+func NewRow(cellValues ...interface{}) Row
+```
+
 ## Running Tests
 
 To run the tests for this package, use the following command:
