@@ -1,13 +1,18 @@
-### README.md
-
-```markdown
 # Excel Exporter
 
-`excel_exporter` is a Go package that provides functionality for exporting Excel files with multiple sheets. It supports setting styles on individual cells and offers two export methods: `StreamWriter` and `Memory`. The package utilizes the `github.com/xuri/excelize/v2` library to handle the Excel file operations.
+`excel-exporter` is a Go package designed to simplify the process of exporting data to Excel files. It supports both in-memory and stream writing modes, making it efficient for handling large datasets. This package is built on top of the `github.com/xuri/excelize/v2` package for robust Excel file manipulation.
+
+## Features
+
+- Export data to Excel with support for multiple sheets.
+- Efficient handling of large datasets using StreamWriter mode.
+- Customizable cell styles, merged cells, and row options.
+- Automatic handling of sheet row limits by creating new sheets.
+- Built on top of the `github.com/xuri/excelize/v2` package for robust Excel file manipulation.
 
 ## Installation
 
-To install the package, use the following command:
+To install the package, use:
 
 ```sh
 go get -u github.com/xelarion/excel-exporter
@@ -15,136 +20,182 @@ go get -u github.com/xelarion/excel-exporter
 
 ## Usage
 
-### Creating a New ExcelExporter
+### Exporting Data
 
-To create a new `ExcelExporter` instance, specify the file name and whether to use the `StreamWriter` method for exporting:
-
-```go
-import "github.com/xelarion/excel-exporter"
-
-exporter := excel_exporter.NewExcelExporter("example.xlsx", true) // Use true for StreamWriter
-```
-
-### Defining Sheet Data
-
-Define the data for each sheet using the `SheetData` structure. Implement a `RowDataFunc` function that returns the data for each row:
-
-```go
-func rowDataFunc() *excel_exporter.Row {
-    cells := []excelize.Cell{
-        {Value: "Sample Data 1"},
-        {Value: "Sample Data 2"},
-    }
-
-    return &excel_exporter.Row{
-        Cells: cells,
-        MergeCells: []excel_exporter.MergeCell{
-            {HCell: "A1", VCell: "B1"},
-        },
-        RowOpts: []excelize.RowOpts{
-            {Height: 20},
-        },
-    }
-}
-
-sheetData := excel_exporter.SheetData{
-    Name:    "Sheet1",
-    RowFunc: rowDataFunc,
-}
-```
-
-### Exporting the Excel File
-
-To export the Excel file, call the `Export` method with the sheet data:
-
-```go
-sheets := []excel_exporter.SheetData{sheetData}
-
-if err := exporter.Export(sheets); err != nil {
-    fmt.Println("Failed to export Excel file:", err)
-} else {
-    fmt.Println("Excel file exported successfully.")
-}
-```
-
-### Full Example
+This example demonstrates how to use the `StreamWriter` mode to export a large dataset to an Excel file.
 
 ```go
 package main
 
 import (
-    "fmt"
-    "github.com/xelarion/excel-exporter"
-    "github.com/xuri/excelize/v2"
+	"fmt"
+	"github.com/xuri/excelize/v2"
+	excelexporter "github.com/xelarion/excel-exporter"
 )
 
-func generateRowData(exporter *excel_exporter.ExcelExporter) *excel_exporter.Row {
-    cells := make([]excelize.Cell, 20)
-    for i := 0; i < 20; i++ {
-        style, _ := exporter.File.NewStyle(&excelize.Style{
-            Font: &excelize.Font{Color: "777777", Size: 12},
-            Alignment: &excelize.Alignment{
-                Horizontal: "center",
-                Vertical:   "center",
-            },
-        })
-        cells[i] = excelize.Cell{
-            StyleID: style,
-            Formula: "",
-            Value:   fmt.Sprintf("Data %d", i),
-        }
-    }
+func main() {
+	// Set useStreamWriter to true for StreamWriter mode, false for in-memory mode
+	useStreamWriter := true
+	exporter := excelexporter.New("test_export.xlsx", useStreamWriter)
+	sheets := []excelexporter.SheetData{
+		{Name: "Sheet1", RowFunc: generateLargeData("Sheet1", 1500000)},
+		{Name: "Sheet2", RowFunc: generateLargeData("Sheet2", 2000)},
+	}
 
-    return &excel_exporter.Row{
-        Cells: cells,
-        MergeCells: []excel_exporter.MergeCell{
-            {HCell: "A1", VCell: "B1"},
-        },
-        RowOpts: []excelize.RowOpts{
-            {Height: 20},
-        },
-    }
+	if err := exporter.Export(sheets); err != nil {
+		fmt.Printf("Failed to export Excel file: %v\n", err)
+	}
 }
 
-func generateLargeData(exporter *excel_exporter.ExcelExporter, rowCount int) excel_exporter.RowDataFunc {
-    currentRow := 0
-    return func() *excel_exporter.Row {
-        if currentRow >= rowCount {
-            return nil
-        }
-        currentRow++
-        return generateRowData(exporter)
-    }
+func generateLargeData(sheetName string, rowCount int) excelexporter.RowDataFunc {
+	currentRow := 0
+	return func() excelexporter.Row {
+		if currentRow >= rowCount {
+			return excelexporter.Row{}
+		}
+		currentRow++
+		return excelexporter.Row{
+			Cells: []excelize.Cell{
+				{Value: fmt.Sprintf("%s-a%d", sheetName, currentRow)},
+				{Value: fmt.Sprintf("%s-b%d", sheetName, currentRow)},
+				{Value: fmt.Sprintf("%s-c%d", sheetName, currentRow)},
+			},
+		}
+	}
 }
+```
+
+### Exporting Data Using Channel
+
+This example demonstrates how to use channels with the `UseRowChan` function to export data to an Excel file.
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/xuri/excelize/v2"
+	excelexporter "github.com/xelarion/excel-exporter"
+)
 
 func main() {
-    exporter := excel_exporter.NewExcelExporter("example.xlsx", true) // Use StreamWriter
+	exporter := excelexporter.New("test_channel.xlsx", true)
+	sheetNames := []string{"SheetA", "SheetB"}
+	sheets := make([]excelexporter.SheetData, len(sheetNames))
+	for i, name := range sheetNames {
+		sheets[i] = excelexporter.SheetData{
+			Name:    name,
+			RowFunc: excelexporter.UseRowChan(queryDataToChannelFunc(exporter, name)),
+		}
+	}
 
-    sheetData1 := excel_exporter.SheetData{
-        Name:    "Sheet1",
-        RowFunc: generateLargeData(exporter, 1000), // 1000 rows
-    }
-    sheetData2 := excel_exporter.SheetData{
-        Name:    "Sheet2",
-        RowFunc: generateLargeData(exporter, 500),  // 500 rows
-    }
+	if err := exporter.Export(sheets); err != nil {
+		fmt.Printf("Failed to export Excel file with StreamWriter: %v\n", err)
+	}
+}
 
-    sheets := []excel_exporter.SheetData{sheetData1, sheetData2}
+func queryDataToChannelFunc(exporter *excelexporter.Exporter, sheetName string) func(dataCh chan excelexporter.Row) {
+	return func(dataCh chan excelexporter.Row) {
+		titleStyle, _ := exporter.File.NewStyle(
+			&excelize.Style{
+				Font:      &excelize.Font{Color: "777777", Size: 14},
+				Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+			},
+		)
 
-    if err := exporter.Export(sheets); err != nil {
-        fmt.Println("Failed to export Excel file:", err)
-    } else {
-        fmt.Println("Excel file exported successfully.")
-    }
+		// Set column width
+		if exporter.UseStreamWriter {
+			// when use StreamWriter
+			_ = exporter.StreamWriter.SetColWidth(1, 3, 30)
+		} else {
+			// when use memory
+			_ = exporter.File.SetColWidth(exporter.CurrentSheet, "A", "C", 30)
+		}
+
+		dataCh <- excelexporter.Row{
+			Cells: []excelize.Cell{
+				{Value: "MergedTitle 1", StyleID: titleStyle},
+				{Value: "", StyleID: titleStyle},
+				{Value: "MergedTitle 2", StyleID: titleStyle},
+			},
+			// Merge cells
+			MergeCells: []excelexporter.MergeCell{
+				{TopLeftCell: "A1", BottomRightCell: "B1"},
+			},
+			// set row style, only useful when useStreamWriter is true
+			RowOpts: []excelize.RowOpts{
+				{Height: 20, StyleID: titleStyle},
+			},
+		}
+
+		// Title
+		dataCh <- excelexporter.Row{
+			Cells: []excelize.Cell{
+				{Value: "Title 1", StyleID: titleStyle},
+				{Value: "Title 2", StyleID: titleStyle},
+				{Value: "Title 3", StyleID: titleStyle},
+			},
+		}
+
+		// Simulate querying data from the database and sending to channel
+		for i := 0; i < 10; i++ {
+			dataCh <- excelexporter.Row{
+				Cells: []excelize.Cell{
+					{Value: fmt.Sprintf("%s-%d-1", sheetName, i)},
+					{Value: fmt.Sprintf("%s-%d-2", sheetName, i)},
+					{Value: fmt.Sprintf("%s-%d-3", sheetName, i)},
+				},
+			}
+		}
+	}
 }
 ```
 
-### Testing
+## API Reference
 
-The package includes tests to verify the functionality of exporting large datasets with both `StreamWriter` and in-memory methods. The tests record the duration, CPU usage, and memory usage.
+### `Exporter`
 
-```
-go test -v ./...
+The `Exporter` struct provides methods for exporting data to Excel files.
+
+#### Methods
+
+- `New(fileName string, useStreamWriter bool) *Exporter`: Creates a new `Exporter`.
+- `Export(sheets []SheetData) error`: Exports the Excel file with the specified sheets.
+
+### `SheetData`
+
+The `SheetData` struct represents the data for a single sheet.
+
+#### Fields
+
+- `Name string`: The name of the sheet.
+- `RowFunc RowDataFunc`: A function that returns the next row of data.
+
+### `Row`
+
+The `Row` struct represents a row of data in the Excel sheet.
+
+#### Fields
+
+- `Cells []excelize.Cell`: Cells in the row.
+- `MergeCells []MergeCell`: Merged cells in the row.
+- `RowOpts []excelize.RowOpts`: Options for the row.
+
+### `MergeCell`
+
+The `MergeCell` struct defines a merged cell data.
+
+#### Fields
+
+- `TopLeftCell string`: The starting cell to be merged.
+- `BottomRightCell string`: The ending cell to be merged.
+
+### `UseRowChan`
+
+The `UseRowChan` function returns a `RowDataFunc` that uses a channel to send `Row` objects to the given function.
+
+```go
+func UseRowChan(sendDataFunc func(dataCh chan Row)) RowDataFunc
 ```
 
 ## License
