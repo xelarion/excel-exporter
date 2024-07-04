@@ -169,13 +169,11 @@ func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Ro
 
 		// query data and send to channel
 		for i := 0; i < 10; i++ {
-			dataCh <- Row{
-				Cells: []excelize.Cell{
-					{Value: fmt.Sprintf("%s-%d-1", sheetName, i)},
-					{Value: fmt.Sprintf("%s-%d-2", sheetName, i)},
-					{Value: fmt.Sprintf("%s-%d-3", sheetName, i)},
-				},
-			}
+			dataCh <- NewRow(
+				fmt.Sprintf("%s-%d-1", sheetName, i),
+				fmt.Sprintf("%s-%d-2", sheetName, i),
+				fmt.Sprintf("%s-%d-3", sheetName, i),
+			)
 		}
 
 	}
@@ -188,15 +186,11 @@ func generateLargeData(sheetName string, rowCount int) RowDataFunc {
 			return Row{}
 		}
 		currentRow++
-		return Row{
-			Cells: []excelize.Cell{
-				{Value: fmt.Sprintf("%s-a%d", sheetName, currentRow)},
-				{Value: fmt.Sprintf("%s-b%d", sheetName, currentRow)},
-				{Value: fmt.Sprintf("%s-c%d", sheetName, currentRow)},
-			},
-			MergeCells: nil,
-			RowOpts:    nil,
-		}
+		return NewRow(
+			fmt.Sprintf("%s-a%d", sheetName, currentRow),
+			fmt.Sprintf("%s-b%d", sheetName, currentRow),
+			fmt.Sprintf("%s-c%d", sheetName, currentRow),
+		)
 	}
 }
 

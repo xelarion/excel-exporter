@@ -10,19 +10,6 @@ import (
 // SheetMaxRows defines the maximum number of rows per sheet for Excel 2007 and later versions (.xlsx format).
 const SheetMaxRows = 1048576
 
-// MergeCell defines a merged cell data.
-type MergeCell struct {
-	TopLeftCell     string
-	BottomRightCell string
-}
-
-// Row represents a row of data in the Excel sheet.
-type Row struct {
-	Cells      []excelize.Cell    // Cells in the row
-	MergeCells []MergeCell        // Merged cells in the row
-	RowOpts    []excelize.RowOpts // Options for the row, only useful when useStreamWriter is true
-}
-
 // RowDataFunc is a function type that returns the next row of data or nil if no more data.
 type RowDataFunc func() Row
 

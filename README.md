@@ -54,13 +54,11 @@ func generateLargeData(sheetName string, rowCount int) excelexporter.RowDataFunc
 			return excelexporter.Row{}
 		}
 		currentRow++
-		return excelexporter.Row{
-			Cells: []excelize.Cell{
-				{Value: fmt.Sprintf("%s-a%d", sheetName, currentRow)},
-				{Value: fmt.Sprintf("%s-b%d", sheetName, currentRow)},
-				{Value: fmt.Sprintf("%s-c%d", sheetName, currentRow)},
-			},
-		}
+		return excelexporter.NewRow(
+			fmt.Sprintf("%s-a%d", sheetName, currentRow),
+			fmt.Sprintf("%s-b%d", sheetName, currentRow),
+			fmt.Sprintf("%s-c%d", sheetName, currentRow),
+		)
 	}
 }
 ```
@@ -139,13 +137,11 @@ func queryDataToChannelFunc(exporter *excelexporter.Exporter, sheetName string) 
 
 		// Simulate querying data from the database and sending to channel
 		for i := 0; i < 10; i++ {
-			dataCh <- excelexporter.Row{
-				Cells: []excelize.Cell{
-					{Value: fmt.Sprintf("%s-%d-1", sheetName, i)},
-					{Value: fmt.Sprintf("%s-%d-2", sheetName, i)},
-					{Value: fmt.Sprintf("%s-%d-3", sheetName, i)},
-				},
-			}
+			dataCh <- excelexporter.NewRow(
+				fmt.Sprintf("%s-%d-1", sheetName, i),
+				fmt.Sprintf("%s-%d-2", sheetName, i),
+				fmt.Sprintf("%s-%d-3", sheetName, i),
+			)
 		}
 	}
 }
