@@ -16,11 +16,11 @@ func TestExportWithStreamWriter(t *testing.T) {
 
 	sheetData1 := SheetData{
 		Name:    "SheetA",
-		RowFunc: generateLargeData(20000), // 20k rows
+		RowFunc: generateLargeData("SheetA", 20000), // 20k rows
 	}
 	sheetData2 := SheetData{
 		Name:    "SheetB",
-		RowFunc: generateLargeData(2000), // 2k rows
+		RowFunc: generateLargeData("SheetB", 2000), // 2k rows
 	}
 
 	sheets := []SheetData{sheetData1, sheetData2}
@@ -63,11 +63,11 @@ func TestExportWithMemory(t *testing.T) {
 
 	sheetData1 := SheetData{
 		Name:    "Sheet1",
-		RowFunc: generateLargeData(20000), // 20k rows
+		RowFunc: generateLargeData("Sheet1", 20000), // 20k rows
 	}
 	sheetData2 := SheetData{
 		Name:    "Sheet2",
-		RowFunc: generateLargeData(2000), // 2k rows
+		RowFunc: generateLargeData("Sheet2", 2000), // 2k rows
 	}
 
 	sheets := []SheetData{sheetData1, sheetData2}
@@ -181,7 +181,7 @@ func addRowsToChanFunc(exporter *ExcelExporter, sheetName string) func(dataCh ch
 	}
 }
 
-func generateLargeData(rowCount int) RowDataFunc {
+func generateLargeData(sheetName string, rowCount int) RowDataFunc {
 	currentRow := 0
 	return func() Row {
 		if currentRow >= rowCount {
@@ -190,9 +190,9 @@ func generateLargeData(rowCount int) RowDataFunc {
 		currentRow++
 		return Row{
 			Cells: []excelize.Cell{
-				{Value: fmt.Sprintf("a%d", currentRow)},
-				{Value: fmt.Sprintf("b%d", currentRow)},
-				{Value: fmt.Sprintf("c%d", currentRow)},
+				{Value: fmt.Sprintf("%s-a%d", sheetName, currentRow)},
+				{Value: fmt.Sprintf("%s-b%d", sheetName, currentRow)},
+				{Value: fmt.Sprintf("%s-c%d", sheetName, currentRow)},
 			},
 			MergeCells: nil,
 			RowOpts:    nil,

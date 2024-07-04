@@ -2,6 +2,7 @@ package excel_exporter
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -192,15 +193,18 @@ func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) erro
 }
 
 // UseRowChan returns a RowDataFunc that will use a channel to send Row objects to the given function
-func UseRowChan(fn func(dataCh chan Row)) RowDataFunc {
-	dataCh := make(chan Row)
-
-	go func() {
-		defer close(dataCh)
-		fn(dataCh)
-	}()
-
+func UseRowChan(sendDataFunc func(dataCh chan Row)) RowDataFunc {
+	var once sync.Once
+	var dataCh chan Row
 	return func() Row {
+		once.Do(func() {
+			dataCh = make(chan Row)
+			go func() {
+				defer close(dataCh)
+				sendDataFunc(dataCh)
+			}()
+		})
+
 		row, ok := <-dataCh
 		if !ok {
 			return Row{}
