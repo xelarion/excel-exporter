@@ -198,6 +198,14 @@ The `UseRowChan` function returns a `RowDataFunc` that uses a channel to send `R
 func UseRowChan(sendDataFunc func(dataCh chan Row)) RowDataFunc
 ```
 
+## Running Tests
+
+To run the tests for this package, use the following command:
+
+```sh
+go test -v ./...
+```
+
 ## License
 
 This project is licensed under the MIT License.
