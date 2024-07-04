@@ -33,10 +33,13 @@ type SheetData struct {
 
 // ExcelExporter wraps *excelize.File and *excelize.StreamWriter for exporting Excel files.
 type ExcelExporter struct {
-	File            *excelize.File
-	StreamWriter    *excelize.StreamWriter
-	FileName        string
+	File     *excelize.File
+	FileName string
+
 	UseStreamWriter bool
+	StreamWriter    *excelize.StreamWriter
+
+	CurrentSheetName string // Current sheet name
 }
 
 // NewExcelExporter creates a new ExcelExporter.
@@ -150,9 +153,9 @@ func (e *ExcelExporter) exportWithMemory(sheet SheetData) error {
 func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) error, writeRowFunc func(string, int, Row) error) error {
 	rowID := 1
 	sheetSuffix := 0
-	currentSheetName := sheet.Name
+	e.CurrentSheetName = sheet.Name
 
-	if err := initFunc(currentSheetName); err != nil {
+	if err := initFunc(e.CurrentSheetName); err != nil {
 		return err
 	}
 
@@ -165,19 +168,20 @@ func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) erro
 		if rowID > SheetMaxRows {
 			// Create a new sheet if row count exceeds SheetMaxRows
 			sheetSuffix++
-			currentSheetName = fmt.Sprintf("%s_%d", sheet.Name, sheetSuffix)
 			rowID = 1
 
+			currentSheetName := fmt.Sprintf("%s_%d", sheet.Name, sheetSuffix)
 			if _, err := e.File.NewSheet(currentSheetName); err != nil {
 				return fmt.Errorf("failed to create a new sheet: %w", err)
 			}
 
-			if err := initFunc(currentSheetName); err != nil {
+			e.CurrentSheetName = currentSheetName
+			if err := initFunc(e.CurrentSheetName); err != nil {
 				return err
 			}
 		}
 
-		if err := writeRowFunc(currentSheetName, rowID, row); err != nil {
+		if err := writeRowFunc(e.CurrentSheetName, rowID, row); err != nil {
 			return err
 		}
 
@@ -185,4 +189,22 @@ func (e *ExcelExporter) exportHelper(sheet SheetData, initFunc func(string) erro
 	}
 
 	return nil
+}
+
+// UseRowChan returns a RowDataFunc that will use a channel to send Row objects to the given function
+func UseRowChan(fn func(dataCh chan Row)) RowDataFunc {
+	dataCh := make(chan Row)
+
+	go func() {
+		defer close(dataCh)
+		fn(dataCh)
+	}()
+
+	return func() Row {
+		row, ok := <-dataCh
+		if !ok {
+			return Row{}
+		}
+		return row
+	}
 }
