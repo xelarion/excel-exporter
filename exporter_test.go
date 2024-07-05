@@ -115,7 +115,7 @@ func TestExportWithStreamWriterUseChannel(t *testing.T) {
 	for i, name := range sheetNames {
 		sheets[i] = SheetData{
 			Name:    name,
-			RowFunc: UseRowChan(addRowsToChanFunc(exporter, name)),
+			RowFunc: UseRowChan(queryDataToChannelFunc(exporter, name)),
 		}
 	}
 
@@ -127,28 +127,34 @@ func TestExportWithStreamWriterUseChannel(t *testing.T) {
 	t.Logf("Export with StreamWriter channel took %v", duration)
 }
 
-func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Row) {
-	return func(dataCh chan Row) {
-		titleStyle, _ := exporter.File.NewStyle(
+func queryDataToChannelFunc(exporter *Exporter, sheetName string) func(dataCh chan Row) error {
+	return func(dataCh chan Row) error {
+		titleStyle, err := exporter.File.NewStyle(
 			&excelize.Style{
 				Font:      &excelize.Font{Color: "777777", Size: 14},
 				Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 			},
 		)
+		if err != nil {
+			return err
+		}
 
 		// Set column width
 		if exporter.UseStreamWriter {
-			_ = exporter.StreamWriter.SetColWidth(1, 3, 30)
+			if err = exporter.StreamWriter.SetColWidth(1, 3, 30); err != nil {
+				return err
+			}
 		} else {
-			_ = exporter.File.SetColWidth(exporter.CurrentSheet, "A", "C", 30)
+			if err = exporter.File.SetColWidth(exporter.CurrentSheet, "A", "C", 30); err != nil {
+				return err
+			}
 		}
 
-		// Merge cells
 		dataCh <- Row{
 			Cells: []excelize.Cell{
-				{Value: "MergedTitle 1"},
-				{Value: ""},
-				{Value: "MergedTitle 2"},
+				{Value: "MergedTitle 1", StyleID: titleStyle},
+				{Value: "", StyleID: titleStyle},
+				{Value: "MergedTitle 2", StyleID: titleStyle},
 			},
 			MergeCells: []MergeCell{
 				{TopLeftCell: "A1", BottomRightCell: "B1"},
@@ -158,7 +164,6 @@ func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Ro
 			},
 		}
 
-		// Title
 		dataCh <- Row{
 			Cells: []excelize.Cell{
 				{Value: "Title 1", StyleID: titleStyle},
@@ -167,7 +172,7 @@ func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Ro
 			},
 		}
 
-		// query data and send to channel
+		// Simulate querying data from the database and sending to channel
 		for i := 0; i < 10; i++ {
 			dataCh <- NewRow(
 				fmt.Sprintf("%s-%d-1", sheetName, i),
@@ -176,21 +181,22 @@ func addRowsToChanFunc(exporter *Exporter, sheetName string) func(dataCh chan Ro
 			)
 		}
 
+		return nil
 	}
 }
 
 func generateLargeData(sheetName string, rowCount int) RowDataFunc {
 	currentRow := 0
-	return func() Row {
+	return func() (Row, error) {
 		if currentRow >= rowCount {
-			return Row{}
+			return Row{}, nil
 		}
 		currentRow++
 		return NewRow(
 			fmt.Sprintf("%s-a%d", sheetName, currentRow),
 			fmt.Sprintf("%s-b%d", sheetName, currentRow),
 			fmt.Sprintf("%s-c%d", sheetName, currentRow),
-		)
+		), nil
 	}
 }
 

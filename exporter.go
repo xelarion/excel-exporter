@@ -10,8 +10,8 @@ import (
 // SheetMaxRows defines the maximum number of rows per sheet for Excel 2007 and later versions (.xlsx format).
 const SheetMaxRows = 1048576
 
-// RowDataFunc is a function type that returns the next row of data or nil if no more data.
-type RowDataFunc func() Row
+// RowDataFunc is a function type that returns the next row of data and an error if any.
+type RowDataFunc func() (Row, error)
 
 // SheetData represents the data for a single sheet.
 type SheetData struct {
@@ -146,16 +146,20 @@ func (e *Exporter) exportHelper(sheet SheetData, initFunc func(string) error, wr
 	}
 
 	for {
-		row := sheet.RowFunc()
+		row, err := sheet.RowFunc()
+		if err != nil {
+			return err
+		}
+
 		if row.Cells == nil {
 			break
 		}
 
 		if rowID > SheetMaxRows {
-			// Create a new sheet if row count exceeds SheetMaxRows
 			sheetSuffix++
 			rowID = 1
 
+			// Create a new sheet if row count exceeds SheetMaxRows
 			currentSheetName := fmt.Sprintf("%s_%d", sheet.Name, sheetSuffix)
 			if _, err := e.File.NewSheet(currentSheetName); err != nil {
 				return fmt.Errorf("failed to create a new sheet: %w", err)
@@ -177,23 +181,28 @@ func (e *Exporter) exportHelper(sheet SheetData, initFunc func(string) error, wr
 	return nil
 }
 
-// UseRowChan returns a RowDataFunc that will use a channel to send Row objects to the given function
-func UseRowChan(sendDataFunc func(dataCh chan Row)) RowDataFunc {
+// UseRowChan returns a RowDataFunc that will use a channel to send Row objects to the given function.
+func UseRowChan(sendDataFunc func(dataCh chan Row) error) RowDataFunc {
 	var once sync.Once
 	var dataCh chan Row
-	return func() Row {
+	var sendErr error
+	return func() (Row, error) {
 		once.Do(func() {
 			dataCh = make(chan Row)
 			go func() {
 				defer close(dataCh)
-				sendDataFunc(dataCh)
+				sendErr = sendDataFunc(dataCh)
 			}()
 		})
 
 		row, ok := <-dataCh
-		if !ok {
-			return Row{}
+		if sendErr != nil {
+			return Row{}, sendErr
 		}
-		return row
+
+		if !ok {
+			return Row{}, nil
+		}
+		return row, nil
 	}
 }
