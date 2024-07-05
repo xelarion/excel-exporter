@@ -186,6 +186,7 @@ func UseRowChan(sendDataFunc func(dataCh chan Row) error) RowDataFunc {
 	var once sync.Once
 	var dataCh chan Row
 	var sendErr error
+
 	return func() (Row, error) {
 		once.Do(func() {
 			dataCh = make(chan Row)
