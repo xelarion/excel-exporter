@@ -2,3 +2,4 @@
 *.prof
 *.xlsx
 .DS_Store
+.envrc
