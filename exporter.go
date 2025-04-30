@@ -11,7 +11,8 @@ import (
 const SheetMaxRows = 1048576
 
 // RowDataFunc is a function type that returns the next row of data and an error if any.
-type RowDataFunc func() (Row, error)
+// The rowNumber parameter indicates the current Excel row number (starting from 1).
+type RowDataFunc func(rowNumber int) (Row, error)
 
 // SheetData represents the data for a single sheet.
 type SheetData struct {
@@ -146,7 +147,7 @@ func (e *Exporter) exportHelper(sheet SheetData, initFunc func(string) error, wr
 	}
 
 	for {
-		row, err := sheet.RowFunc()
+		row, err := sheet.RowFunc(rowID)
 		if err != nil {
 			return err
 		}
@@ -187,7 +188,7 @@ func UseRowChan(sendDataFunc func(dataCh chan Row) error) RowDataFunc {
 	var dataCh chan Row
 	var sendErr error
 
-	return func() (Row, error) {
+	return func(rowNumber int) (Row, error) {
 		once.Do(func() {
 			dataCh = make(chan Row)
 			go func() {
