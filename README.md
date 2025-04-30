@@ -48,18 +48,17 @@ func main() {
 }
 
 func generateLargeData(sheetName string, rowCount int) excelexporter.RowDataFunc {
-    currentRow := 0
-    return func() (excelexporter.Row, error) {
-        if currentRow >= rowCount {
-            return excelexporter.Row{}, nil
-        }
-        currentRow++
-        return excelexporter.NewRow(
-            fmt.Sprintf("%s-a%d", sheetName, currentRow),
-            fmt.Sprintf("%s-b%d", sheetName, currentRow),
-            fmt.Sprintf("%s-c%d", sheetName, currentRow),
-        ), nil
-    }
+	return func(rowNumber int) (excelexporter.Row, error) {
+		if rowNumber > rowCount {
+			return excelexporter.Row{}, nil
+		}
+
+		return excelexporter.NewRow(
+			fmt.Sprintf("%s-a%d", sheetName, rowNumber),
+			fmt.Sprintf("%s-b%d", sheetName, rowNumber),
+			fmt.Sprintf("%s-c%d", sheetName, rowNumber),
+		), nil
+	}
 }
 ```
 

@@ -173,7 +173,7 @@ func queryDataToChannelFunc(exporter *Exporter, sheetName string) func(dataCh ch
 		}
 
 		// Simulate querying data from the database and sending to channel
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 10000; i++ {
 			dataCh <- NewRow(
 				fmt.Sprintf("%s-%d-1", sheetName, i),
 				fmt.Sprintf("%s-%d-2", sheetName, i),
@@ -186,16 +186,15 @@ func queryDataToChannelFunc(exporter *Exporter, sheetName string) func(dataCh ch
 }
 
 func generateLargeData(sheetName string, rowCount int) RowDataFunc {
-	currentRow := 0
-	return func() (Row, error) {
-		if currentRow >= rowCount {
+	return func(rowNumber int) (Row, error) {
+		if rowNumber > rowCount {
 			return Row{}, nil
 		}
-		currentRow++
+
 		return NewRow(
-			fmt.Sprintf("%s-a%d", sheetName, currentRow),
-			fmt.Sprintf("%s-b%d", sheetName, currentRow),
-			fmt.Sprintf("%s-c%d", sheetName, currentRow),
+			fmt.Sprintf("%s-a%d", sheetName, rowNumber),
+			fmt.Sprintf("%s-b%d", sheetName, rowNumber),
+			fmt.Sprintf("%s-c%d", sheetName, rowNumber),
 		), nil
 	}
 }
