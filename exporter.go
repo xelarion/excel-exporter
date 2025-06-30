@@ -8,16 +8,20 @@ import (
 )
 
 // SheetMaxRows defines the maximum number of rows per sheet for Excel 2007 and later versions (.xlsx format).
-const SheetMaxRows = 1048576
+const SheetMaxRows = 1 << 20
 
 // RowDataFunc is a function type that returns the next row of data and an error if any.
 // The rowNumber parameter indicates the current Excel row number (starting from 1).
 type RowDataFunc func(rowNumber int) (Row, error)
 
+// InitFunc is a function type that will be called at the beginning of each sheet.
+type InitFunc func(exporter *Exporter) error
+
 // SheetData represents the data for a single sheet.
 type SheetData struct {
-	Name    string
-	RowFunc RowDataFunc
+	Name     string
+	RowFunc  RowDataFunc
+	InitFunc InitFunc
 }
 
 // Exporter provides methods for exporting data to Excel files.
@@ -40,6 +44,9 @@ func New(fileName string, useStreamWriter bool) *Exporter {
 
 // Export exports the Excel file.
 func (e *Exporter) Export(sheets []SheetData) error {
+	// call close to remove temp files
+	defer e.File.Close()
+
 	for i, sheet := range sheets {
 		if _, err := e.File.NewSheet(sheet.Name); err != nil {
 			return fmt.Errorf("failed to create a new sheet: %w", err)
@@ -69,7 +76,23 @@ func (e *Exporter) Export(sheets []SheetData) error {
 func (e *Exporter) exportUsingStreamWriter(sheet SheetData) error {
 	initFunc := func(sheetName string) error {
 		var err error
+		// cell merge and style will be lost if no flush
+		if e.StreamWriter != nil {
+			err = e.StreamWriter.Flush()
+			if err != nil {
+				return err
+			}
+		}
 		e.StreamWriter, err = e.File.NewStreamWriter(sheetName)
+		if err != nil {
+			return err
+		}
+		if sheet.InitFunc != nil {
+			err = sheet.InitFunc(e)
+			if err != nil {
+				return err
+			}
+		}
 		return err
 	}
 
@@ -102,6 +125,9 @@ func (e *Exporter) exportUsingStreamWriter(sheet SheetData) error {
 
 func (e *Exporter) exportUsingMemory(sheet SheetData) error {
 	initFunc := func(sheetName string) error {
+		if sheet.InitFunc != nil {
+			return sheet.InitFunc(e)
+		}
 		return nil
 	}
 
